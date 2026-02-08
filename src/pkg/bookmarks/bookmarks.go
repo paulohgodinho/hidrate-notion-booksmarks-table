@@ -140,6 +140,24 @@ func (s *Service) List(ctx context.Context, filter *Filter) ([]*Bookmark, error)
 			})
 		}
 
+		if filter.ErrorContains != "" {
+			filters = append(filters, notionapi.PropertyFilter{
+				Property: "Error",
+				RichText: &notionapi.TextFilterCondition{
+					Contains: filter.ErrorContains,
+				},
+			})
+		}
+
+		if filter.Processed != nil {
+			filters = append(filters, notionapi.PropertyFilter{
+				Property: "Processed",
+				Checkbox: &notionapi.CheckboxFilterCondition{
+					Equals: *filter.Processed,
+				},
+			})
+		}
+
 		if filter.HasTag != "" {
 			filters = append(filters, notionapi.PropertyFilter{
 				Property: "Tags",
@@ -319,4 +337,94 @@ func (s *Service) RemoveTags(ctx context.Context, bookmarkID string, tagIDs []st
 	bookmark.TagIDs = filteredTagIDs
 
 	return s.Update(ctx, bookmarkID, bookmark)
+}
+
+// MarkAsProcessed marks a bookmark as processed
+func (s *Service) MarkAsProcessed(ctx context.Context, bookmarkID string) (*Bookmark, error) {
+	bookmark, err := s.Get(ctx, bookmarkID)
+	if err != nil {
+		return nil, err
+	}
+
+	bookmark.Processed = true
+	bookmark.Error = "" // Clear any existing error
+
+	return s.Update(ctx, bookmarkID, bookmark)
+}
+
+// SetError sets an error message for a bookmark and marks it as not processed
+func (s *Service) SetError(ctx context.Context, bookmarkID string, errorMsg string) (*Bookmark, error) {
+	bookmark, err := s.Get(ctx, bookmarkID)
+	if err != nil {
+		return nil, err
+	}
+
+	bookmark.Error = errorMsg
+	bookmark.Processed = false
+
+	return s.Update(ctx, bookmarkID, bookmark)
+}
+
+// GetUnprocessed retrieves all bookmarks that haven't been processed yet
+func (s *Service) GetUnprocessed(ctx context.Context, limit int) ([]*Bookmark, error) {
+	query := &notionapi.DatabaseQueryRequest{
+		Filter: &notionapi.PropertyFilter{
+			Property: "Processed",
+			Checkbox: &notionapi.CheckboxFilterCondition{
+				DoesNotEqual: true, // Find all where Processed != true (includes false and null)
+			},
+		},
+	}
+
+	if limit > 0 {
+		query.PageSize = limit
+	}
+
+	resp, err := s.client.API().Database.Query(ctx, s.client.BookmarksDB(), query)
+	if err != nil {
+		return nil, notion.NewError("get unprocessed bookmarks", err, "failed to query unprocessed bookmarks")
+	}
+
+	bookmarks := make([]*Bookmark, 0, len(resp.Results))
+	for _, page := range resp.Results {
+		bookmark, err := ToBookmark(&page)
+		if err != nil {
+			continue // Skip invalid bookmarks
+		}
+		bookmarks = append(bookmarks, bookmark)
+	}
+
+	return bookmarks, nil
+}
+
+// GetWithErrors retrieves all bookmarks that have errors
+func (s *Service) GetWithErrors(ctx context.Context, limit int) ([]*Bookmark, error) {
+	query := &notionapi.DatabaseQueryRequest{
+		Filter: &notionapi.PropertyFilter{
+			Property: "Error",
+			RichText: &notionapi.TextFilterCondition{
+				IsNotEmpty: true,
+			},
+		},
+	}
+
+	if limit > 0 {
+		query.PageSize = limit
+	}
+
+	resp, err := s.client.API().Database.Query(ctx, s.client.BookmarksDB(), query)
+	if err != nil {
+		return nil, notion.NewError("get bookmarks with errors", err, "failed to query bookmarks with errors")
+	}
+
+	bookmarks := make([]*Bookmark, 0, len(resp.Results))
+	for _, page := range resp.Results {
+		bookmark, err := ToBookmark(&page)
+		if err != nil {
+			continue
+		}
+		bookmarks = append(bookmarks, bookmark)
+	}
+
+	return bookmarks, nil
 }

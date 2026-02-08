@@ -57,6 +57,16 @@ func ToBookmark(page *notionapi.Page) (*Bookmark, error) {
 		}
 	}
 
+	// Extract Processed checkbox
+	if processedProp, ok := page.Properties["Processed"].(*notionapi.CheckboxProperty); ok {
+		bookmark.Processed = processedProp.Checkbox
+	}
+
+	// Extract Error
+	if errorProp, ok := page.Properties["Error"].(*notionapi.RichTextProperty); ok {
+		bookmark.Error = notion.RichTextToString(errorProp.RichText)
+	}
+
 	return bookmark, nil
 }
 
@@ -110,6 +120,16 @@ func ToNotionProperties(bookmark *Bookmark) notionapi.Properties {
 		props["Tags"] = notionapi.RelationProperty{
 			Relation: relations,
 		}
+	}
+
+	// Always set Processed checkbox (defaults to false if not set)
+	props["Processed"] = notionapi.CheckboxProperty{
+		Checkbox: bookmark.Processed,
+	}
+
+	// Set Error field (can be empty string)
+	props["Error"] = notionapi.RichTextProperty{
+		RichText: notion.StringToRichText(bookmark.Error),
 	}
 
 	return props

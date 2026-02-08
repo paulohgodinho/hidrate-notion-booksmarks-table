@@ -14,6 +14,8 @@ type Bookmark struct {
 	DateAdded time.Time
 	Author    string
 	ImageURL  string
+	Processed bool   // Whether the bookmark has been processed
+	Error     string // Error message if processing failed
 	CreatedAt time.Time
 	UpdatedAt time.Time
 }
@@ -24,8 +26,10 @@ type Filter struct {
 	URLContains     string
 	SummaryContains string
 	AuthorContains  string
+	ErrorContains   string   // Filter by error message
 	HasTag          string   // Filter by tag ID
 	TagIDs          []string // Filter by multiple tag IDs
+	Processed       *bool    // Filter by processed status (nil = no filter)
 	Limit           int
 }
 

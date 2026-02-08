@@ -2,63 +2,30 @@
 
 set -euo pipefail
 
-# Configuration
 BINARY_NAME="hidrate-notion-bookmarks"
 BUILD_DIR="bin"
-CMD_PATH="./cmd/example/main.go"
 
-# Colors for output
-GREEN='\033[0;32m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+# Build flags to remove all VCS info and metadata
+# -trimpath removes absolute paths
+# -ldflags="-s -w" removes symbols and debug info
+# -buildvcs=false prevents embedding VCS info (go 1.18+)
+GO_BUILD_FLAGS="-trimpath -ldflags=-s -ldflags=-w -buildvcs=false"
 
-echo -e "${BLUE}Building ${BINARY_NAME}...${NC}"
-
-# Clean previous builds
+# Clean and create bin directory
 rm -rf "${BUILD_DIR}"
 mkdir -p "${BUILD_DIR}"
 
-# Build flags for idempotent, reproducible builds
-BUILD_FLAGS=(
-    -trimpath
-    -ldflags="-s -w -buildid="
-)
-
-# Build for macOS ARM64
-echo -e "${GREEN}Building for macOS ARM64...${NC}"
-CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build \
-    "${BUILD_FLAGS[@]}" \
-    -o "${BUILD_DIR}/${BINARY_NAME}-darwin-arm64" \
-    "${CMD_PATH}"
+cd src
 
 # Build for Linux AMD64
-echo -e "${GREEN}Building for Linux AMD64...${NC}"
-CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
-    "${BUILD_FLAGS[@]}" \
-    -o "${BUILD_DIR}/${BINARY_NAME}-linux-amd64" \
-    "${CMD_PATH}"
+CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build ${GO_BUILD_FLAGS} -o "../${BUILD_DIR}/${BINARY_NAME}-linux-amd64" .
 
-# Generate checksums
-echo -e "${GREEN}Generating checksums...${NC}"
-cd "${BUILD_DIR}"
+# Build for macOS ARM64
+CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build ${GO_BUILD_FLAGS} -o "../${BUILD_DIR}/${BINARY_NAME}-darwin-arm64" .
 
-# Generate SHA256 checksums
-if command -v shasum &> /dev/null; then
-    shasum -a 256 ${BINARY_NAME}-* > checksums.txt
-elif command -v sha256sum &> /dev/null; then
-    sha256sum ${BINARY_NAME}-* > checksums.txt
-else
-    echo "Warning: Neither shasum nor sha256sum found. Skipping checksum generation."
-fi
+# Build for Windows AMD64
+CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build ${GO_BUILD_FLAGS} -o "../${BUILD_DIR}/${BINARY_NAME}-windows-amd64.exe" .
 
 cd ..
 
-# Display results
-echo -e "\n${GREEN}Build complete!${NC}"
-echo -e "Artifacts:"
-ls -lh "${BUILD_DIR}"
-
-if [ -f "${BUILD_DIR}/checksums.txt" ]; then
-    echo -e "\n${BLUE}Checksums:${NC}"
-    cat "${BUILD_DIR}/checksums.txt"
-fi
+echo "✓ Binaries built in ${BUILD_DIR}/"
