@@ -7,10 +7,11 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"time"
 
-	"github.com/pgodinho/hidrate-notion-bookmarks/pkg/bookmarks"
 	"github.com/pgodinho/hidrate-notion-bookmarks/pkg/notion"
 	"github.com/pgodinho/hidrate-notion-bookmarks/pkg/scraper"
+	"github.com/pgodinho/hidrate-notion-bookmarks/pkg/tables/bookmarks"
 )
 
 func main() {
@@ -24,7 +25,7 @@ func main() {
 	}
 
 	// Initialize clients
-	notionClient := notion.NewClient(cfg.NotionAPIKey, cfg.BookmarksDBID, cfg.TagsDBID)
+	notionClient := notion.NewClient(cfg.NotionAPIKey, cfg.BookmarksDBID, cfg.TagsDBID, cfg.ManualListDBID, cfg.SmartListDBID)
 	bookmarkService := bookmarks.NewService(notionClient)
 
 	// Default to localhost if not set in config
@@ -151,20 +152,17 @@ func main() {
 		// Extract image URL from scraped content (try multiple sources)
 		var imageURL string
 
-		// Priority order: content.Image → OGImage → TwitterImage → metadata.Image
+		// Priority order: content.Image → metadata.Image
 		if content.Image != nil && *content.Image != "" {
 			imageURL = *content.Image
-		} else if content.Metadata != nil {
-			// Try OpenGraph image
-			if content.Metadata.OGImage != nil && *content.Metadata.OGImage != "" {
-				imageURL = *content.Metadata.OGImage
-			} else if content.Metadata.TwitterImage != nil && *content.Metadata.TwitterImage != "" {
-				// Try Twitter Card image
-				imageURL = *content.Metadata.TwitterImage
-			} else if content.Metadata.Image != nil && *content.Metadata.Image != "" {
-				// Try generic metadata image
-				imageURL = *content.Metadata.Image
-			}
+		} else if content.Metadata != nil && content.Metadata.Image != nil && *content.Metadata.Image != "" {
+			imageURL = *content.Metadata.Image
+		}
+
+		// Extract favicon URL from scraped content
+		var faviconURL string
+		if content.Metadata != nil && content.Metadata.Logo != nil && *content.Metadata.Logo != "" {
+			faviconURL = *content.Metadata.Logo
 		}
 
 		// Upload image to Notion and set as page cover (if enabled)
@@ -187,12 +185,30 @@ func main() {
 			}
 		}
 
+		// Upload favicon to Notion and set as page icon
+		var iconFileUploadID string
+		if faviconURL != "" && cfg.UploadImagesToNotion && imageUploader != nil {
+			fmt.Printf("  📤 Uploading favicon to Notion...")
+
+			fileUploadID, err := imageUploader.UploadImageFromURL(ctx, faviconURL)
+			if err != nil {
+				fmt.Printf(" ❌ Upload failed: %v\n", err)
+				faviconURL = "" // Don't set any icon
+			} else {
+				fmt.Printf(" ✅ Uploaded (ID: %s)\n", fileUploadID)
+				iconFileUploadID = fileUploadID
+			}
+		}
+
 		// Update ImageURL property if empty and available
 		if bookmark.ImageURL == "" && imageURL != "" {
 			bookmark.ImageURL = imageURL
 			fmt.Printf("  ✓ Set image property: %s\n", imageURL)
 			updated = true
 		}
+
+		// Set date processed and full JSON
+		bookmark.DateProcessed = time.Now()
 
 		// Mark as processed and clear error
 		bookmark.Processed = true
@@ -213,6 +229,34 @@ func main() {
 			fmt.Println("  (No metadata property updates needed)")
 		}
 
+		// Prepare JSON content for page: truncate only the "content" field if present
+		jsonContent := result.RawJSON
+		var jsonData map[string]interface{}
+		if err := json.Unmarshal([]byte(result.RawJSON), &jsonData); err == nil {
+			if content, ok := jsonData["content"].(string); ok && len(content) > 250 {
+				jsonData["content"] = content[:250] + " [truncated]"
+				if modifiedJSON, err := json.Marshal(jsonData); err == nil {
+					jsonContent = string(modifiedJSON)
+				}
+			}
+		}
+
+		// Pretty-print the JSON for better readability in the code block
+		var prettyJSON bytes.Buffer
+		if err := json.Indent(&prettyJSON, []byte(jsonContent), "", "  "); err == nil {
+			jsonContent = prettyJSON.String()
+		}
+
+		// Update page content with full JSON as code block (erase all existing content)
+		fmt.Println("  📝 Updating page content with full JSON...")
+		err = notion.UpdatePageContentWithJSON(ctx, cfg.NotionAPIKey, string(bookmark.ID), jsonContent)
+		if err != nil {
+			fmt.Printf(" ⚠️  Failed to update page content: %v\n", err)
+			// Don't fail the whole process, just log the warning
+		} else {
+			fmt.Printf(" ✅ Page content updated\n")
+		}
+
 		// Set page cover if we have a FileUpload ID (always update cover)
 		if coverFileUploadID != "" {
 			fmt.Printf("  🖼️  Setting page cover...")
@@ -221,6 +265,17 @@ func main() {
 				fmt.Printf(" ⚠️  Failed to set cover: %v\n", err)
 			} else {
 				fmt.Printf(" ✅ Cover set\n")
+			}
+		}
+
+		// Set page icon if we have a FileUpload ID
+		if iconFileUploadID != "" {
+			fmt.Printf("  🖼️  Setting page icon...")
+			err = notion.SetPageIcon(ctx, cfg.NotionAPIKey, string(bookmark.ID), iconFileUploadID)
+			if err != nil {
+				fmt.Printf(" ⚠️  Failed to set icon: %v\n", err)
+			} else {
+				fmt.Printf(" ✅ Icon set\n")
 			}
 		}
 
@@ -235,4 +290,14 @@ func main() {
 	fmt.Printf("Total: %d bookmarks\n", len(unprocessed))
 	fmt.Printf("✓ Successfully processed: %d\n", successCount)
 	fmt.Printf("✗ Failed: %d\n", errorCount)
+	fmt.Println()
+
+	// Signal the scraper service to exit
+	fmt.Println("Signaling scraper service to exit...")
+	err = scraperClient.Exit(ctx)
+	if err != nil {
+		fmt.Printf("⚠️ Failed to signal scraper exit: %v\n", err)
+	} else {
+		fmt.Println("✓ Scraper service signaled to exit")
+	}
 }

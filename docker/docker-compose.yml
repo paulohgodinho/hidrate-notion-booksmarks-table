@@ -1,16 +1,16 @@
-version: '3.8'
-
 services:
   # Webmeatscraper service
   webmeatscraper:
     image: ghcr.io/paulohgodinho/webmeatscraper:latest
     platform: linux/amd64
+    env_file:
+      - ../.env
     ports:
-      - "7878:7878"
+      - "${WEBMEATSCRAPER_PORT}:${WEBMEATSCRAPER_PORT}"
     networks:
       - notion-network
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:7878/health"]
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:${WEBMEATSCRAPER_PORT}/health"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -19,19 +19,19 @@ services:
   # Notion bookmarks processor
   notion-processor:
     build:
-      context: .
-      dockerfile: Dockerfile
+      context: ..
+      dockerfile: ./docker/Dockerfile
     depends_on:
       webmeatscraper:
         condition: service_healthy
     env_file:
-      - .env
+      - ../.env
     environment:
-      - WEBMEATSCRAPER_URL=http://webmeatscraper:7878
+      - WEBMEATSCRAPER_URL=http://webmeatscraper:${WEBMEATSCRAPER_PORT}
     networks:
       - notion-network
     volumes:
-      - ./.env:/root/.env:ro
+      - ../.env:/root/.env:ro
 
 networks:
   notion-network:

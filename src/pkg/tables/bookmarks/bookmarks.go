@@ -106,7 +106,7 @@ func (s *Service) List(ctx context.Context, filter *Filter) ([]*Bookmark, error)
 
 		if filter.TitleContains != "" {
 			filters = append(filters, notionapi.PropertyFilter{
-				Property: "",
+				Property: PropertyPage,
 				RichText: &notionapi.TextFilterCondition{
 					Contains: filter.TitleContains,
 				},
@@ -115,7 +115,7 @@ func (s *Service) List(ctx context.Context, filter *Filter) ([]*Bookmark, error)
 
 		if filter.URLContains != "" {
 			filters = append(filters, notionapi.PropertyFilter{
-				Property: "URL",
+				Property: PropertyURL,
 				RichText: &notionapi.TextFilterCondition{
 					Contains: filter.URLContains,
 				},
@@ -124,7 +124,7 @@ func (s *Service) List(ctx context.Context, filter *Filter) ([]*Bookmark, error)
 
 		if filter.SummaryContains != "" {
 			filters = append(filters, notionapi.PropertyFilter{
-				Property: "Summary",
+				Property: PropertySummary,
 				RichText: &notionapi.TextFilterCondition{
 					Contains: filter.SummaryContains,
 				},
@@ -133,7 +133,7 @@ func (s *Service) List(ctx context.Context, filter *Filter) ([]*Bookmark, error)
 
 		if filter.AuthorContains != "" {
 			filters = append(filters, notionapi.PropertyFilter{
-				Property: "Author",
+				Property: PropertyAuthor,
 				RichText: &notionapi.TextFilterCondition{
 					Contains: filter.AuthorContains,
 				},
@@ -142,7 +142,7 @@ func (s *Service) List(ctx context.Context, filter *Filter) ([]*Bookmark, error)
 
 		if filter.ErrorContains != "" {
 			filters = append(filters, notionapi.PropertyFilter{
-				Property: "Error",
+				Property: PropertyError,
 				RichText: &notionapi.TextFilterCondition{
 					Contains: filter.ErrorContains,
 				},
@@ -151,7 +151,7 @@ func (s *Service) List(ctx context.Context, filter *Filter) ([]*Bookmark, error)
 
 		if filter.Processed != nil {
 			filters = append(filters, notionapi.PropertyFilter{
-				Property: "Processed",
+				Property: PropertyProcessed,
 				Checkbox: &notionapi.CheckboxFilterCondition{
 					Equals: *filter.Processed,
 				},
@@ -160,7 +160,7 @@ func (s *Service) List(ctx context.Context, filter *Filter) ([]*Bookmark, error)
 
 		if filter.HasTag != "" {
 			filters = append(filters, notionapi.PropertyFilter{
-				Property: "Tags",
+				Property: PropertyTag,
 				Relation: &notionapi.RelationFilterCondition{
 					Contains: filter.HasTag,
 				},
@@ -189,7 +189,7 @@ func (s *Service) List(ctx context.Context, filter *Filter) ([]*Bookmark, error)
 	// Add default sorting by Date Added (descending)
 	query.Sorts = []notionapi.SortObject{
 		{
-			Property:  "Date Added",
+			Property:  PropertyDateAdded,
 			Direction: notionapi.SortOrderDESC,
 		},
 	}
@@ -369,7 +369,7 @@ func (s *Service) SetError(ctx context.Context, bookmarkID string, errorMsg stri
 func (s *Service) GetUnprocessed(ctx context.Context, limit int) ([]*Bookmark, error) {
 	query := &notionapi.DatabaseQueryRequest{
 		Filter: &notionapi.PropertyFilter{
-			Property: "Processed",
+			Property: PropertyProcessed,
 			Checkbox: &notionapi.CheckboxFilterCondition{
 				DoesNotEqual: true, // Find all where Processed != true (includes false and null)
 			},
@@ -401,7 +401,7 @@ func (s *Service) GetUnprocessed(ctx context.Context, limit int) ([]*Bookmark, e
 func (s *Service) GetWithErrors(ctx context.Context, limit int) ([]*Bookmark, error) {
 	query := &notionapi.DatabaseQueryRequest{
 		Filter: &notionapi.PropertyFilter{
-			Property: "Error",
+			Property: PropertyError,
 			RichText: &notionapi.TextFilterCondition{
 				IsNotEmpty: true,
 			},

@@ -14,6 +14,8 @@ type Config struct {
 	NotionAPIKey      string
 	BookmarksDBID     string
 	TagsDBID          string
+	ManualListDBID    string
+	SmartListDBID     string
 	WebmeatscraperURL string
 
 	// Image upload configuration
@@ -36,6 +38,8 @@ func Load() (*Config, error) {
 		NotionAPIKey:      os.Getenv("NOTION_API_KEY"),
 		BookmarksDBID:     os.Getenv("NOTION_BOOKMARKS_DB_ID"),
 		TagsDBID:          os.Getenv("NOTION_TAGS_DB_ID"),
+		ManualListDBID:    os.Getenv("NOTION_MANUALLIST_DB_ID"),
+		SmartListDBID:     os.Getenv("NOTION_SMARTLIST_DB_ID"),
 		WebmeatscraperURL: os.Getenv("WEBMEATSCRAPER_URL"),
 
 		// Parse image upload settings with defaults
@@ -65,6 +69,12 @@ func (c *Config) Validate() error {
 	}
 	if c.TagsDBID == "" {
 		return fmt.Errorf("NOTION_TAGS_DB_ID is required")
+	}
+	if c.ManualListDBID == "" {
+		return fmt.Errorf("NOTION_MANUALLIST_DB_ID is required")
+	}
+	if c.SmartListDBID == "" {
+		return fmt.Errorf("NOTION_SMARTLIST_DB_ID is required")
 	}
 	// WebmeatscraperURL is optional - will default to localhost:7878 if not set
 	return nil

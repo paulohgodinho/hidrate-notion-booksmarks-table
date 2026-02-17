@@ -30,7 +30,7 @@ func NewClient(baseURL string) *Client {
 	return &Client{
 		baseURL: baseURL,
 		httpClient: &http.Client{
-			Timeout: 30 * time.Second, // 30 second timeout for scraping requests
+			Timeout: 80 * time.Second, // 80 second timeout for scraping requests
 		},
 	}
 }
@@ -126,6 +126,26 @@ func (c *Client) Health(ctx context.Context) (*HealthResponse, error) {
 	}
 
 	return &health, nil
+}
+
+// Exit sends a GET request to the /exit endpoint to signal the scraper service to shut down
+func (c *Client) Exit(ctx context.Context) error {
+	req, err := http.NewRequestWithContext(ctx, "GET", c.baseURL+"/exit", nil)
+	if err != nil {
+		return fmt.Errorf("failed to create exit request: %w", err)
+	}
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to send exit request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("exit request returned status %d", resp.StatusCode)
+	}
+
+	return nil
 }
 
 // BaseURL returns the base URL of the scraper service

@@ -225,3 +225,46 @@ func SetPageCover(ctx context.Context, notionToken string, pageID string, fileUp
 
 	return nil
 }
+
+// SetPageIcon sets the icon of a Notion page using a FileUpload ID
+func SetPageIcon(ctx context.Context, notionToken string, pageID string, fileUploadID string) error {
+	// Build raw JSON since library doesn't support file_upload type yet
+	updatePayload := map[string]interface{}{
+		"icon": map[string]interface{}{
+			"type": "file_upload",
+			"file_upload": map[string]string{
+				"id": fileUploadID,
+			},
+		},
+	}
+
+	bodyBytes, err := json.Marshal(updatePayload)
+	if err != nil {
+		return err
+	}
+
+	req, err := http.NewRequestWithContext(ctx, "PATCH",
+		fmt.Sprintf("https://api.notion.com/v1/pages/%s", pageID),
+		bytes.NewReader(bodyBytes))
+	if err != nil {
+		return err
+	}
+
+	req.Header.Set("Authorization", "Bearer "+notionToken)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Notion-Version", "2022-06-28")
+
+	httpClient := &http.Client{Timeout: 10 * time.Second}
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("API error %d: %s", resp.StatusCode, string(body))
+	}
+
+	return nil
+}

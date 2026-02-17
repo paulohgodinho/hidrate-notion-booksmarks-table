@@ -67,7 +67,7 @@ func (s *Service) GetByName(ctx context.Context, name string) (*Tag, error) {
 	// Query the database for a tag with the given name
 	query := &notionapi.DatabaseQueryRequest{
 		Filter: &notionapi.PropertyFilter{
-			Property: "Name",
+			Property: PropertyName,
 			RichText: &notionapi.TextFilterCondition{
 				Equals: name,
 			},
@@ -133,7 +133,7 @@ func (s *Service) List(ctx context.Context, filter *Filter) ([]*Tag, error) {
 	if filter != nil {
 		if filter.NameContains != "" {
 			query.Filter = &notionapi.PropertyFilter{
-				Property: "Name",
+				Property: PropertyName,
 				RichText: &notionapi.TextFilterCondition{
 					Contains: filter.NameContains,
 				},
@@ -148,7 +148,7 @@ func (s *Service) List(ctx context.Context, filter *Filter) ([]*Tag, error) {
 	// Add sorting by name
 	query.Sorts = []notionapi.SortObject{
 		{
-			Property:  "Name",
+			Property:  PropertyName,
 			Direction: notionapi.SortOrderASC,
 		},
 	}

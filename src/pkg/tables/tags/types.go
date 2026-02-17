@@ -12,6 +12,11 @@ type Tag struct {
 	UpdatedAt time.Time
 }
 
+// Property names for type-safe access to Notion properties
+const (
+	PropertyName = "name"
+)
+
 // Filter defines filtering options for listing tags
 type Filter struct {
 	NameContains string

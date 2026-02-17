@@ -20,7 +20,7 @@ func ToTag(page *notionapi.Page) (*Tag, error) {
 	}
 
 	// Extract Name from title property
-	if titleProp, ok := page.Properties["Name"].(*notionapi.TitleProperty); ok {
+	if titleProp, ok := page.Properties[PropertyName].(*notionapi.TitleProperty); ok {
 		tag.Name = notion.GetTitleText(titleProp.Title)
 	}
 
@@ -32,7 +32,7 @@ func ToNotionProperties(tag *Tag) notionapi.Properties {
 	props := notionapi.Properties{}
 
 	if tag.Name != "" {
-		props["Name"] = notionapi.TitleProperty{
+		props[PropertyName] = notionapi.TitleProperty{
 			Title: notion.StringToRichText(tag.Name),
 		}
 	}

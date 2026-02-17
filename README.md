@@ -369,9 +369,9 @@ import (
     "context"
     "log"
     
-    "github.com/pgodinho/hidrate-notion-bookmarks/pkg/bookmarks"
+    "github.com/pgodinho/hidrate-notion-bookmarks/pkg/tables/bookmarks"
     "github.com/pgodinho/hidrate-notion-bookmarks/pkg/notion"
-    "github.com/pgodinho/hidrate-notion-bookmarks/pkg/tags"
+    "github.com/pgodinho/hidrate-notion-bookmarks/pkg/tables/tags"
 )
 
 func main() {
@@ -382,7 +382,7 @@ func main() {
     }
     
     // Create client
-    client := notion.NewClient(cfg.NotionAPIKey, cfg.BookmarksDBID, cfg.TagsDBID)
+    client := notion.NewClient(cfg.NotionAPIKey, cfg.BookmarksDBID, cfg.TagsDBID, cfg.ManualListDBID, cfg.SmartListDBID)
     
     // Create services
     tagService := tags.NewService(client)
